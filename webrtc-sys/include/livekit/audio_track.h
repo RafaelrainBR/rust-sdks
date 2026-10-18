@@ -56,6 +56,9 @@ class AudioTrack : public MediaStreamTrack {
 
   void add_sink(const std::shared_ptr<NativeAudioSink>& sink) const;
   void remove_sink(const std::shared_ptr<NativeAudioSink>& sink) const;
+  // Playout gain of a remote track, 0 to 10 (1 is unchanged), like
+  // AudioSourceInterface::SetVolume; local tracks ignore it.
+  void set_volume(double volume) const;
 
  private:
   webrtc::AudioTrackInterface* track() const {
