@@ -20,6 +20,10 @@
 #include <string>
 #include <vector>
 
+#if defined(_WIN32)
+// nvEncodeAPI.h pulls in windows.h; webrtc's headers need winsock2.h before it.
+#include <winsock2.h>
+#endif
 #include "Utils/NvCodecUtils.h"
 #include "nvEncodeAPI.h"
 

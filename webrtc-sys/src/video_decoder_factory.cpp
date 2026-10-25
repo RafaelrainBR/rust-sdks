@@ -35,7 +35,7 @@
 #include "livekit/android.h"
 #endif
 
-#if defined(USE_NVIDIA_VIDEO_CODEC)
+#if defined(USE_NVIDIA_VIDEO_DECODER)
 #include "nvidia/nvidia_decoder_factory.h"
 #endif
 
@@ -79,7 +79,7 @@ VideoDecoderFactory::VideoDecoderFactory()
   factories_.push_back(CreateAndroidVideoDecoderFactory());
 #endif
 
-#if defined(USE_NVIDIA_VIDEO_CODEC)
+#if defined(USE_NVIDIA_VIDEO_DECODER)
   if (webrtc::NvidiaVideoDecoderFactory::IsSupported()) {
     factories_.push_back(std::make_unique<webrtc::NvidiaVideoDecoderFactory>());
   }

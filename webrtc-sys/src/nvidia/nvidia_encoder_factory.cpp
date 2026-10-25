@@ -16,7 +16,15 @@
 #include "nvEncodeAPI.h"
 #include "rtc_base/logging.h"
 
+#if defined(_WIN32)
+#include <windows.h>
+// The probe below is written against dlfcn; on Windows the same calls map to the loader.
+#define dlopen(name, flags) ((void*)LoadLibraryA(name))
+#define dlsym(module, name) ((void*)GetProcAddress((HMODULE)(module), name))
+#define dlclose(module) FreeLibrary((HMODULE)(module))
+#else
 #include <dlfcn.h>
+#endif
 
 namespace webrtc {
 
@@ -125,7 +133,11 @@ NvencProbeResult ProbeNvencSupport() {
   // CUDA being available does NOT imply NVENC is present. Compute-only GPUs
   // (H100, A100, etc.) have full CUDA support but no encode hardware.
   // Probe the NVENC library and try to open a session to be sure.
+#if defined(_WIN32)
+  void* hModule = dlopen("nvEncodeAPI64.dll", 0);
+#else
   void* hModule = dlopen("libnvidia-encode.so.1", RTLD_LAZY);
+#endif
   if (!hModule) {
     RTC_LOG(LS_WARNING) << "NVENC library (libnvidia-encode.so.1) not found, "
                            "hardware encoding unavailable.";
