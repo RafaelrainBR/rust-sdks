@@ -422,6 +422,13 @@ int32_t AdmProxy::SetPlayoutDevice(uint16_t index) {
 }
 
 int32_t AdmProxy::SetPlayoutDevice(WindowsDeviceType device) {
+  // The voice engine asks for the default communications device, and Windows lowers
+  // every other app ("Communications" in the Sound settings) while a stream plays on
+  // that role; SetDuckingPreference does not stop it. The default (console) device is
+  // the same speakers without the ducking, and follows the system default too.
+  if (device == webrtc::AudioDeviceModule::kDefaultCommunicationDevice) {
+    device = webrtc::AudioDeviceModule::kDefaultDevice;
+  }
   return RunOnWorker([this, device] {
     RTC_DCHECK_RUN_ON(worker_thread_);
     selected_playout_device_ = DeviceSelection(device);
