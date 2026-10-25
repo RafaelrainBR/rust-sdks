@@ -152,6 +152,32 @@ fn main() {
             println!("cargo:rustc-link-lib=dylib=dwmapi");
             println!("cargo:rustc-link-lib=dylib=shcore");
 
+            // NVENC (H264/H265/AV1) through the NVIDIA driver. CUDA_PATH is a CUDA toolkit or just the
+            // cuda_cudart redist (include/cuda.h, lib/x64/cuda.lib). The final binary must delay-load
+            // nvcuda.dll (/DELAYLOAD:nvcuda.dll + delayimp.lib) so it still starts without an NVIDIA
+            // driver; cuda_context.cpp LoadLibrary-checks it before any CUDA call. Hardware decoding
+            // stays Linux-only: on Windows it would need nvcuvid.lib from the Video Codec SDK.
+            println!("cargo:rerun-if-env-changed=CUDA_PATH");
+            match env::var("CUDA_PATH").map(PathBuf::from) {
+                Ok(cuda) if cuda.join("include").join("cuda.h").exists() => {
+                    println!("cargo:rustc-link-search=native={}", cuda.join("lib").join("x64").display());
+                    println!("cargo:rustc-link-lib=dylib=cuda");
+                    builder
+                        .include(cuda.join("include"))
+                        .include("src/nvidia/NvCodec/include")
+                        .include("src/nvidia/NvCodec/NvCodec")
+                        .file("src/nvidia/NvCodec/NvCodec/NvEncoder/NvEncoder.cpp")
+                        .file("src/nvidia/NvCodec/NvCodec/NvEncoder/NvEncoderCuda.cpp")
+                        .file("src/nvidia/h264_encoder_impl.cpp")
+                        .file("src/nvidia/h265_encoder_impl.cpp")
+                        .file("src/nvidia/av1_encoder_impl.cpp")
+                        .file("src/nvidia/nvidia_encoder_factory.cpp")
+                        .file("src/nvidia/cuda_context.cpp")
+                        .define("USE_NVIDIA_VIDEO_CODEC", "1");
+                }
+                _ => println!("cargo:warning=CUDA_PATH has no include/cuda.h; building without NVENC"),
+            }
+
             //let path = env::current_dir().unwrap();
             //println!("cargo:rustc-link-search=native={}/vaapi-windows/x64/lib", path.display());
             //println!("cargo:rustc-link-lib=dylib=va");
@@ -302,7 +328,8 @@ fn main() {
                         .file("src/nvidia/nvidia_encoder_factory.cpp")
                         .file("src/nvidia/cuda_context.cpp")
                         .flag("-Wno-deprecated-declarations")
-                        .flag("-DUSE_NVIDIA_VIDEO_CODEC=1");
+                        .flag("-DUSE_NVIDIA_VIDEO_CODEC=1")
+                        .flag("-DUSE_NVIDIA_VIDEO_DECODER=1");
 
                     add_lazy_load_so(
                         &mut builder,

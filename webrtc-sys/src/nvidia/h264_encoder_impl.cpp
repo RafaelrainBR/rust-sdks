@@ -98,11 +98,10 @@ NvidiaH264EncoderImpl::NvidiaH264EncoderImpl(
     level_ = profile_level_id->level;
   }
 
+  // The negotiated level is often below the stream: 42e01f is level 3.1 (720p30), and NVENC
+  // rejects a 1080p60 session held to it (NV_ENC_ERR_INVALID_PARAM). Let NVENC pick the level
+  // from the resolution and frame rate, as Chrome's encoders do with level-asymmetry-allowed.
   nv_enc_level_ = NV_ENC_LEVEL_AUTOSELECT;
-  if (level_ != H264Level::kLevel1_b) {
-    // Convert H264Level to NV_ENC_LEVEL.
-    nv_enc_level_ = webrtc::H264LevelToNvEncLevel(level_);
-  }
 
   RTC_CHECK_NE(cu_memory_type_, CU_MEMORYTYPE_HOST);
 }
