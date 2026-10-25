@@ -60,6 +60,10 @@
 #include "vaapi/vaapi_encoder_factory.h"
 #endif
 
+#if defined(USE_MF_VIDEO_CODEC)
+#include "mediafoundation/mf_encoder_factory.h"
+#endif
+
 #if defined(USE_JETSON_VIDEO_CODEC)
 #include "jetson/jetson_encoder_factory.h"
 #endif
@@ -288,6 +292,30 @@ void AddVaapiFactory(
 #endif
 }
 
+// Intel Quick Sync and AMD AMF through Media Foundation, only where no other hardware backend
+// already encodes H264: NVENC, when present, keeps the GPU's own encoder first.
+void AddMediaFoundationFactory(
+    std::vector<VideoEncoderBackendFactory>& factories) {
+#if defined(USE_MF_VIDEO_CODEC)
+  const bool has_h264 = std::any_of(
+      factories.begin(), factories.end(), [](const VideoEncoderBackendFactory& backend) {
+        if (backend.backend == VideoEncoderBackend::PreEncoded) {
+          return false;
+        }
+        const auto formats = backend.factory->GetSupportedFormats();
+        return std::any_of(formats.begin(), formats.end(), [](const webrtc::SdpVideoFormat& format) {
+          return EqualsIgnoreAsciiCase(format.name, "H264");
+        });
+      });
+  if (!has_h264 && webrtc::MfVideoEncoderFactory::IsSupported()) {
+    AddBackendFactory(factories, VideoEncoderBackend::Hardware,
+                      std::make_unique<webrtc::MfVideoEncoderFactory>());
+  }
+#else
+  (void)factories;
+#endif
+}
+
 }  // namespace
 
 using Factory = webrtc::VideoEncoderFactoryTemplate<
@@ -340,6 +368,12 @@ rust::Vec<VideoEncoderBackend> video_encoder_backend_list() {
   }
 #endif
 
+#if defined(USE_MF_VIDEO_CODEC)
+  if (webrtc::MfVideoEncoderFactory::IsSupported()) {
+    has_hardware_backend = true;
+  }
+#endif
+
   if (has_hardware_backend && !hardware_backend_listed) {
     backends.push_back(VideoEncoderBackend::Hardware);
   }
@@ -378,6 +412,7 @@ VideoEncoderFactory::InternalFactory::InternalFactory() {
     AddNvencFactory(factories_, preferred_hw_encoder.explicitly_set);
     AddVaapiFactory(factories_, false);
   }
+  AddMediaFoundationFactory(factories_);
 }
 
 std::vector<webrtc::SdpVideoFormat>
