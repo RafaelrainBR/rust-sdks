@@ -152,6 +152,16 @@ fn main() {
             println!("cargo:rustc-link-lib=dylib=dwmapi");
             println!("cargo:rustc-link-lib=dylib=shcore");
 
+            // H264 on Intel Quick Sync and AMD AMF through the system's Media Foundation encoders
+            // (src/mediafoundation): part of Windows, so every build has it.
+            println!("cargo:rustc-link-lib=dylib=mfplat");
+            println!("cargo:rustc-link-lib=dylib=mfuuid");
+            println!("cargo:rustc-link-lib=dylib=oleaut32");
+            builder
+                .file("src/mediafoundation/mf_h264_encoder.cpp")
+                .file("src/mediafoundation/mf_encoder_factory.cpp")
+                .define("USE_MF_VIDEO_CODEC", "1");
+
             // NVENC (H264/H265/AV1) through the NVIDIA driver. CUDA_PATH is a CUDA toolkit or just the
             // cuda_cudart redist (include/cuda.h, lib/x64/cuda.lib). The final binary must delay-load
             // nvcuda.dll (/DELAYLOAD:nvcuda.dll + delayimp.lib) so it still starts without an NVIDIA
